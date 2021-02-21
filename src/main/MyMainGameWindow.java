@@ -9,6 +9,7 @@ import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
 import java.util.ArrayList;
+import java.util.Random;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -106,6 +107,18 @@ class MyMainGameWindow<i> {
 
     Container.CONTAINER checkForCollision(Position collisionPosition) {
         return tileMap.get(tilePositionToTileNumber(collisionPosition)).container.inside;
+    }
+
+    Position tileNumberToPosition(int tileNumber) {
+        Position computedPosition;
+        int x = 0, y = 0;
+        while (tileNumber % 15 == 0) {
+            tileNumber = tileNumber / 15;
+            x++;
+        }
+        y = tileNumber;
+        computedPosition = new Position(x, y);
+        return computedPosition;
     }
 
     Position getForwardSnakePosition() {
@@ -237,7 +250,8 @@ class MyMainGameWindow<i> {
         int[] snakeTiles;
         int gaminateOnMap = -1;
         int vapeOnMap = -1;
-        int vapeTimer = 0;
+        Random random = new Random();
+        int vapeTimer = random.nextInt(5) + 5;
 
         snake.start(3, 3);
 
@@ -251,10 +265,13 @@ class MyMainGameWindow<i> {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
 
             for (Tile tile : tileMap) {
+                boolean changed = false;
                 if (tilePositionToTileNumber(tile.position) == gaminateOnMap) {
+                    changed = true;
                     tile.container.inside = Container.CONTAINER.BOOSTER_GAMINATE;
                     glColor3f(1, 1, 1);
                 } else if (tilePositionToTileNumber(tile.position) == vapeOnMap) {
+                    changed = true;
                     tile.container.inside = Container.CONTAINER.BOOSTER_VAPE;
                     glColor3f(1, 0, 1);
                 } else {
@@ -268,12 +285,12 @@ class MyMainGameWindow<i> {
                 glEnd();
                 for (Position position : snake.snakePositions) {
                     if ((tile.position.x == position.x) && (tile.position.y == position.y)) {
+                        changed = true;
                         tile.container.inside = Container.CONTAINER.SNAKE_BODY;
                         glColor3f(1, 0, 0);
                         if (position == snake.snakePositions.get(0) || position == snake.snakePositions.get(snake.snakePositions.size() - 1)) {
                             glBegin(GL_QUAD_STRIP);
                         } else {
-                            tile.container.destory();
                             glBegin(GL_QUADS);
                         }
                         glVertex2f((tile.position.x * 20) + 2, (tile.position.y * 20) + 2);
@@ -283,24 +300,31 @@ class MyMainGameWindow<i> {
                         glEnd();
                     }
                 }
+                if (!changed) {
+                    tile.makeEmpty();
+                }
             }
             if (gameTimer >= 60) {
                 // Snake collision game over
                 for (int i = 0; i < snake.snakePositions.size(); i++) {
                     if ((snake.snakePositions.get(i).x == getForwardSnakePosition().x) && (snake.snakePositions.get(i).y == getForwardSnakePosition().y)) {
-                        System.out.println("KOLIZJA");
+                        System.out.println("Collision Game Over");
                         glfwSetWindowShouldClose(window, true);
                     }
                 }
                 // Out of bounds game over
                 if ((snake.snakePositions.get(0).x < 0 || snake.snakePositions.get(0).y < 0) || (snake.snakePositions.get(0).x > 14 || snake.snakePositions.get(0).y > 14)) {
+                    System.out.println("Out of map Game Over");
                     glfwSetWindowShouldClose(window, true);
                 }
+                // Vape game over
                 if (tileMap.get(tilePositionToTileNumber(getForwardSnakePosition())).container.inside == Container.CONTAINER.BOOSTER_VAPE) {
+                    System.out.println("Vape Game Over");
                     glfwSetWindowShouldClose(window, true);
                 }
                 // Gaminate adds one snake body
                 if (tileMap.get(tilePositionToTileNumber(getForwardSnakePosition())).container.inside == Container.CONTAINER.BOOSTER_GAMINATE) {
+                    System.out.println("Snake body Added");
                     snake.addSize();
                     tileMap.get(tilePositionToTileNumber(getForwardSnakePosition())).container.destory();
                     gaminateOnMap = -1;
@@ -313,21 +337,32 @@ class MyMainGameWindow<i> {
                 if (gaminateOnMap == -1) {
                     gaminateOnMap = tileManager.getRandomTile(true);
                 }
-                if (vapeOnMap == -1) {
-                    vapeOnMap = tileManager.getRandomTile(true);
-                }
-                if (vapeTimer >= 5) {
-                    vapeOnMap = tileManager.getRandomTile(true);
-                    vapeTimer = 0;
+//                if (vapeOnMap == -1) {
+//                    vapeOnMap = tileManager.getRandomTile(true);
+//                }
+                if (vapeTimer <= 0) {
+                    Position vapePosition;
+                    int differance = 3;
+                    int counter = 0;
+                    do {
+                        vapeOnMap = tileManager.getRandomTile(true);
+                        vapePosition = new Position(tileNumberToPosition(vapeOnMap));
+                        System.out.println(counter);
+                        counter++;
+                    }
+                    while (
+                            (vapePosition.x - snake.snakePositions.get(0).x < differance && vapePosition.x - snake.snakePositions.get(0).x > -differance) &&
+                                    (vapePosition.y - snake.snakePositions.get(0).y < differance && vapePosition.y - snake.snakePositions.get(0).y > -differance));
+                    vapeTimer = random.nextInt(10) + 5;
                 }
                 if (addSize) {
                     snake.addSize();
                     addSize = false;
                 }
-                for (int j = 0; j < snake.snakePositions.size(); j++) {
-                    // System.out.println("Snake Positions: " + snake.snakePositions.get(j).x + ":" + snake.snakePositions.get(j).y);
-                }
-                vapeTimer++;
+//                for (int j = 0; j < snake.snakePositions.size(); j++) {
+//                    System.out.println("Snake Positions: " + snake.snakePositions.get(j).x + ":" + snake.snakePositions.get(j).y);
+//                }
+                vapeTimer--;
                 System.out.println("////////////");
             }
         }

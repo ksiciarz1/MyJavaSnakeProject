@@ -14,10 +14,11 @@ public class Container {
     }
 
     void destory() {
-        inside = null;
+        inside = CONTAINER.EMPTY;
     }
 
     public enum CONTAINER {
+        EMPTY,
         FRUIT_APPLE,
         FRUIT_ORANGE,
         FRUIT_PINAPPLE,
