@@ -8,7 +8,7 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
-import java.util.Scanner;
+import java.util.ArrayList;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -16,8 +16,14 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
-class MyMainGameWindow {
+class MyMainGameWindow<i> {
 
+    boolean spawnFruit = false;
+    GLFWKeyCallback KeyPressed;
+    boolean addSize = false;
+    TileManager tileManager = new TileManager();
+    ArrayList<Tile> tileMap = tileManager.generateMap(15, 15);
+    Snake snake = new Snake();
     // The window handle
     private long window;
 
@@ -47,19 +53,19 @@ class MyMainGameWindow {
 
         // Configure GLFW
         glfwDefaultWindowHints(); // optional, the current window hints are already the default
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // the window will stay hidden after creation
+        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE); // the window will stay hidden after creation
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // the window will be resizable
 
         // Create the window
-        window = glfwCreateWindow(300, 300, "Hello World!", NULL, NULL);
+        window = glfwCreateWindow(300, 300, "Snake", NULL, NULL);
         if (window == NULL)
             throw new RuntimeException("Failed to create the GLFW window");
 
         // Setup a key callback. It will be called every time a key is pressed, repeated or released.
-        glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
-                glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
-        });
+        // glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
+        //     if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
+        //         glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
+        // });
 
         // Get the thread stack and push a new frame
         try (MemoryStack stack = stackPush()) {
@@ -72,12 +78,12 @@ class MyMainGameWindow {
             // Get the resolution of the primary monitor
             GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
-            glfwSetWindowSize(window, vidmode.width() - 150, vidmode.height() - 150);
+            glfwSetWindowSize(window, 300, 300);
 
             // Center the window
-            // glfwSetWindowPos(window, (vidmode.width() - pWidth.get(0)) / 2, (vidmode.height() - pHeight.get(0)) / 2);
+            glfwSetWindowPos(window, (vidmode.width() - pWidth.get(0)) / 2, (vidmode.height() - pHeight.get(0)) / 2);
             // Center the window but really not just for joke
-            glfwSetWindowPos(window, 50, 50);
+            // glfwSetWindowPos(window, 50, 50);
         } // the stack frame is popped automatically
 
         // Make the OpenGL context current
@@ -89,8 +95,91 @@ class MyMainGameWindow {
         glfwShowWindow(window);
     }
 
-    int counter = 0;
-    boolean HPressed = false;
+    int tilePositionToTileNumber(Position tilePosition) {
+        int computedNumber = 0;
+        for (int i = 0; i < tilePosition.x; i++) {
+            computedNumber += 15;
+        }
+        computedNumber += tilePosition.y;
+        return computedNumber;
+    }
+
+    Container.CONTAINER checkForCollision(Position collisionPosition) {
+        return tileMap.get(tilePositionToTileNumber(collisionPosition)).container.inside;
+    }
+
+    Position getForwardSnakePosition() {
+        Position snakeForwardPosition = new Position(snake.snakePositions.get(0));
+        switch (snake.direction) {
+            case 0:
+                snakeForwardPosition.y--;
+                break;
+            case 1:
+                snakeForwardPosition.x++;
+                break;
+            case 2:
+                snakeForwardPosition.y++;
+                break;
+            case 3:
+                snakeForwardPosition.x--;
+                break;
+        }
+        return snakeForwardPosition;
+    }
+
+    void updateSnakePosition() {
+        // Handle snake direction
+        for (int i = snake.snakePositions.size() - 1; i >= 0; i--) {
+            if (i == 0) {
+                switch (snake.direction) {
+                    case 0:
+                        snake.snakePositions.get(i).y--;
+                        break;
+                    case 1:
+                        snake.snakePositions.get(i).x++;
+                        break;
+                    case 2:
+                        snake.snakePositions.get(i).y++;
+                        break;
+                    case 3:
+                        snake.snakePositions.get(i).x--;
+                        break;
+                }
+            } else {
+                float differanceX = snake.snakePositions.get(i).x - snake.snakePositions.get(i - 1).x;
+                float differanceY = snake.snakePositions.get(i).y - snake.snakePositions.get(i - 1).y;
+                // System.out.println("X: " + differanceX + " Y: " + differanceY);
+                switch ((int) differanceX) {
+                    case -1:
+                        snake.snakePositions.get(i).x++;
+                        break;
+                    case 0:
+                        break;
+                    case 1:
+                        snake.snakePositions.get(i).x--;
+                        break;
+                    default:
+                        System.out.println("FUCKING DEFAULT X");
+                        break;
+                }
+                switch ((int) differanceY) {
+                    case -1:
+                        snake.snakePositions.get(i).y++;
+                        break;
+                    case 0:
+                        break;
+                    case 1:
+                        snake.snakePositions.get(i).y--;
+                        break;
+                    default:
+                        System.out.println("FUCKING DEFAULT Y");
+                        break;
+                }
+            }
+        }
+        snake.directionChanged = false;
+    }
+
 
     private void loop() {
         // This line is critical for LWJGL's interoperation with GLFW's
@@ -103,12 +192,6 @@ class MyMainGameWindow {
         // Set the clear color
         glClearColor(0.0f, 0.0f, 1.0f, 0.0f);
 
-        // Run the rendering loop until the user has attempted to close
-        // the window or has pressed the ESCAPE key.
-        boolean HPressedOld = false;
-        GLFWKeyCallback KeyPressed;
-
-
         // Keyboard Events
         glfwSetKeyCallback(window, KeyPressed = new GLFWKeyCallback() {
             @Override
@@ -116,55 +199,137 @@ class MyMainGameWindow {
                 switch (action) {
                     case GLFW_PRESS:
                         switch (key) {
-                            case GLFW_KEY_H:
-                                if (!HPressed) {
-                                    counter++;
-                                    HPressed = true;
-                                }
+                            case GLFW_KEY_W:
+                                snake.setDirection(Snake.DIRECTION.UP);
+                                break;
+                            case GLFW_KEY_D:
+                                snake.setDirection(Snake.DIRECTION.RIGHT);
+                                break;
+                            case GLFW_KEY_S:
+                                snake.setDirection(Snake.DIRECTION.DOWN);
+                                break;
+                            case GLFW_KEY_A:
+                                snake.setDirection(Snake.DIRECTION.LEFT);
                                 break;
                             case GLFW_KEY_ESCAPE:
-                                glfwDestroyWindow(window);
+                                glfwSetWindowShouldClose(window, true);
+                                break;
+                            case GLFW_KEY_G:
+                                //spawnFruit = true;
+                                addSize = true;
                                 break;
                         }
                         break;
                     case GLFW_RELEASE:
                         switch (key) {
-                            case GLFW_KEY_H:
-                                HPressed = false;
-                                break;
                         }
                         break;
                 }
-
             }
         });
 
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity(); // Resets any previous projection matrices
-        glOrtho(0, 640, 480, 0, 1, -1);
+        // This is a perspective
+        glOrtho(0, 300, 300, 0, 1, -1);
         glMatrixMode(GL_MODELVIEW);
+        int gameTimer = 120;
+        int[] snakeTiles;
+        int gaminateOnMap = -1;
+        int vapeOnMap = -1;
+        int vapeTimer = 0;
+
+        snake.start(3, 3);
 
         while (!glfwWindowShouldClose(window)) {
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
-
-            // My H Pressed Event Making a quad shape
-            if (HPressed) {
-                    glColor3f(1, 0, 0);
-                    glBegin(GL_QUADS);
-                    glVertex2f(50, 50);
-                    glVertex2f(500, 50);
-                    glVertex2f(500, 500);
-                    glVertex2f(50, 500);
-                    glEnd();
-                    HPressed = false;
-            }
-
-
             glfwSwapBuffers(window); // swap the color buffers
+            gameTimer++;
 
             // Poll for window events. The key callback above will only be
             // invoked during this call.
             glfwPollEvents();
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
+
+            for (Tile tile : tileMap) {
+                if (tilePositionToTileNumber(tile.position) == gaminateOnMap) {
+                    tile.container.inside = Container.CONTAINER.BOOSTER_GAMINATE;
+                    glColor3f(1, 1, 1);
+                } else if (tilePositionToTileNumber(tile.position) == vapeOnMap) {
+                    tile.container.inside = Container.CONTAINER.BOOSTER_VAPE;
+                    glColor3f(1, 0, 1);
+                } else {
+                    glColor3f(0, 1, 0);
+                }
+                glBegin(GL_QUAD_STRIP);
+                glVertex2f(tile.position.x * 20, tile.position.y * 20);
+                glVertex2f(tile.position.x * 20, (tile.position.y + 1) * 20);
+                glVertex2f((tile.position.x + 1) * 20, (tile.position.y + 1) * 20);
+                glVertex2f((tile.position.x + 1) * 20, tile.position.y * 20);
+                glEnd();
+                for (Position position : snake.snakePositions) {
+                    if ((tile.position.x == position.x) && (tile.position.y == position.y)) {
+                        tile.container.inside = Container.CONTAINER.SNAKE_BODY;
+                        glColor3f(1, 0, 0);
+                        if (position == snake.snakePositions.get(0) || position == snake.snakePositions.get(snake.snakePositions.size() - 1)) {
+                            glBegin(GL_QUAD_STRIP);
+                        } else {
+                            tile.container.destory();
+                            glBegin(GL_QUADS);
+                        }
+                        glVertex2f((tile.position.x * 20) + 2, (tile.position.y * 20) + 2);
+                        glVertex2f((tile.position.x * 20) + 2, ((tile.position.y + 1) * 20) - 2);
+                        glVertex2f(((tile.position.x + 1) * 20) - 2, ((tile.position.y + 1) * 20) - 2);
+                        glVertex2f(((tile.position.x + 1) * 20) - 2, (tile.position.y * 20) + 2);
+                        glEnd();
+                    }
+                }
+            }
+            if (gameTimer >= 60) {
+                // Snake collision game over
+                for (int i = 0; i < snake.snakePositions.size(); i++) {
+                    if ((snake.snakePositions.get(i).x == getForwardSnakePosition().x) && (snake.snakePositions.get(i).y == getForwardSnakePosition().y)) {
+                        System.out.println("KOLIZJA");
+                        glfwSetWindowShouldClose(window, true);
+                    }
+                }
+                // Out of bounds game over
+                if ((snake.snakePositions.get(0).x < 0 || snake.snakePositions.get(0).y < 0) || (snake.snakePositions.get(0).x > 14 || snake.snakePositions.get(0).y > 14)) {
+                    glfwSetWindowShouldClose(window, true);
+                }
+                if (tileMap.get(tilePositionToTileNumber(getForwardSnakePosition())).container.inside == Container.CONTAINER.BOOSTER_VAPE) {
+                    glfwSetWindowShouldClose(window, true);
+                }
+                // Gaminate adds one snake body
+                if (tileMap.get(tilePositionToTileNumber(getForwardSnakePosition())).container.inside == Container.CONTAINER.BOOSTER_GAMINATE) {
+                    snake.addSize();
+                    tileMap.get(tilePositionToTileNumber(getForwardSnakePosition())).container.destory();
+                    gaminateOnMap = -1;
+                }
+
+                // Handling game tick
+                updateSnakePosition();
+                gameTimer = 0;
+
+                if (gaminateOnMap == -1) {
+                    gaminateOnMap = tileManager.getRandomTile(true);
+                }
+                if (vapeOnMap == -1) {
+                    vapeOnMap = tileManager.getRandomTile(true);
+                }
+                if (vapeTimer >= 5) {
+                    vapeOnMap = tileManager.getRandomTile(true);
+                    vapeTimer = 0;
+                }
+                if (addSize) {
+                    snake.addSize();
+                    addSize = false;
+                }
+                for (int j = 0; j < snake.snakePositions.size(); j++) {
+                    // System.out.println("Snake Positions: " + snake.snakePositions.get(j).x + ":" + snake.snakePositions.get(j).y);
+                }
+                vapeTimer++;
+                System.out.println("////////////");
+            }
         }
     }
 }
