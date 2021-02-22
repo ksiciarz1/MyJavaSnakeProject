@@ -213,24 +213,27 @@ class MyMainGameWindow<i> {
                     case GLFW_PRESS:
                         switch (key) {
                             case GLFW_KEY_W:
+                            case GLFW_KEY_UP:
                                 snake.setDirection(Snake.DIRECTION.UP);
                                 break;
                             case GLFW_KEY_D:
+                            case GLFW_KEY_RIGHT:
                                 snake.setDirection(Snake.DIRECTION.RIGHT);
                                 break;
                             case GLFW_KEY_S:
+                            case GLFW_KEY_DOWN:
                                 snake.setDirection(Snake.DIRECTION.DOWN);
                                 break;
                             case GLFW_KEY_A:
+                            case GLFW_KEY_LEFT:
                                 snake.setDirection(Snake.DIRECTION.LEFT);
                                 break;
                             case GLFW_KEY_ESCAPE:
                                 glfwSetWindowShouldClose(window, true);
                                 break;
-                            case GLFW_KEY_G:
-                                //spawnFruit = true;
-                                addSize = true;
-                                break;
+//                            case GLFW_KEY_G:
+//                                addSize = true;
+//                                break;
                         }
                         break;
                     case GLFW_RELEASE:
@@ -247,7 +250,6 @@ class MyMainGameWindow<i> {
         glOrtho(0, 300, 300, 0, 1, -1);
         glMatrixMode(GL_MODELVIEW);
         int gameTimer = 120;
-        int[] snakeTiles;
         int gaminateOnMap = -1;
         int vapeOnMap = -1;
         Random random = new Random();
@@ -264,8 +266,10 @@ class MyMainGameWindow<i> {
             glfwPollEvents();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
 
+            // Tiles loop
             for (Tile tile : tileMap) {
                 boolean changed = false;
+                // Looking for boosters
                 if (tilePositionToTileNumber(tile.position) == gaminateOnMap) {
                     changed = true;
                     tile.container.inside = Container.CONTAINER.BOOSTER_GAMINATE;
@@ -283,6 +287,7 @@ class MyMainGameWindow<i> {
                 glVertex2f((tile.position.x + 1) * 20, (tile.position.y + 1) * 20);
                 glVertex2f((tile.position.x + 1) * 20, tile.position.y * 20);
                 glEnd();
+                // Checking for tiles with snake on it
                 for (Position position : snake.snakePositions) {
                     if ((tile.position.x == position.x) && (tile.position.y == position.y)) {
                         changed = true;
@@ -300,6 +305,7 @@ class MyMainGameWindow<i> {
                         glEnd();
                     }
                 }
+                // Empty tiles reset to being empty
                 if (!changed) {
                     tile.makeEmpty();
                 }
@@ -312,6 +318,7 @@ class MyMainGameWindow<i> {
                         glfwSetWindowShouldClose(window, true);
                     }
                 }
+
                 // Out of bounds game over
                 if ((snake.snakePositions.get(0).x < 0 || snake.snakePositions.get(0).y < 0) || (snake.snakePositions.get(0).x > 14 || snake.snakePositions.get(0).y > 14)) {
                     System.out.println("Out of map Game Over");
@@ -322,7 +329,7 @@ class MyMainGameWindow<i> {
                     System.out.println("Vape Game Over");
                     glfwSetWindowShouldClose(window, true);
                 }
-                // Gaminate adds one snake body
+                // Gaminate +1 snake body length
                 if (tileMap.get(tilePositionToTileNumber(getForwardSnakePosition())).container.inside == Container.CONTAINER.BOOSTER_GAMINATE) {
                     System.out.println("Snake body Added");
                     snake.addSize();
@@ -334,12 +341,11 @@ class MyMainGameWindow<i> {
                 updateSnakePosition();
                 gameTimer = 0;
 
+                // If Gaminete isn't on map spawn one in empty tile
                 if (gaminateOnMap == -1) {
                     gaminateOnMap = tileManager.getRandomTile(true);
                 }
-//                if (vapeOnMap == -1) {
-//                    vapeOnMap = tileManager.getRandomTile(true);
-//                }
+                // Handle vape teleportation
                 if (vapeTimer <= 0) {
                     Position vapePosition;
                     int differance = 3;
@@ -353,14 +359,12 @@ class MyMainGameWindow<i> {
                     while (
                             (vapePosition.x - snake.snakePositions.get(0).x < differance && vapePosition.x - snake.snakePositions.get(0).x > -differance) &&
                                     (vapePosition.y - snake.snakePositions.get(0).y < differance && vapePosition.y - snake.snakePositions.get(0).y > -differance));
-                    vapeTimer = random.nextInt(10) + 5;
+                    vapeTimer = random.nextInt(10) + 5; // This should avoid vape spawning to near snake head
                 }
-                if (addSize) {
-                    snake.addSize();
-                    addSize = false;
-                }
-//                for (int j = 0; j < snake.snakePositions.size(); j++) {
-//                    System.out.println("Snake Positions: " + snake.snakePositions.get(j).x + ":" + snake.snakePositions.get(j).y);
+                // For debugging
+//                if (addSize) {
+//                    snake.addSize();
+//                    addSize = false;
 //                }
                 vapeTimer--;
                 System.out.println("////////////");
